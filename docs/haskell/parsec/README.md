@@ -12,7 +12,7 @@ The Parsec package contains a number of modules, defining the parser primitives 
 > import Text.Parsec
 ```
 
-### The Basics
+### Parser Primitives
 
 The most basic parser is matching a single character.  Parsec contains parser factory functions for many things in the `Text.Parsec.Char`:
 
@@ -34,3 +34,21 @@ Running this parser on a string starting with an 'a' is possible using a helper 
 > runParser a_char () "filename" "a"
 Right 'a'
 ```
+
+The `runParser` function takes a parser (a_char), a user state (the empty tuple), a filename for error reporting, and the input stream ("a").
+
+As an example of error reporting, try running the parser on a non-matching string:
+
+```
+> runParser a_char () "filename" "b"
+Left "filename" (line 1, column 1):
+unexpected "b"
+expecting "a"
+```
+
+`runParser` returns `Either ParserError a`, where `a` is our `Char` type.  On
+the successful parser run above, the return value was `Right 'a'`, indicating
+a success.  In this run, the return value is an error `Left ...`, where the
+contents is a parser error containing the stream location of the error
+(filename, line, column), the error (unexpected "b"), and the expectation
+(expecting "a").
