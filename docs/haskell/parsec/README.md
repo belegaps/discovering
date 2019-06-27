@@ -18,8 +18,8 @@ the parser type.  To use this, import the module using:
 
 ### Parser Primitives
 
-Parsec contains parser factory functions for many things in the
-`Text.Parsec.Char`.
+Parsec contains parser primitives, the most basic parsers, in the
+`Text.Parsec.Char` module.
 
 ```
 > import Text.Parsec.Char
@@ -36,6 +36,8 @@ The type declaration is necessary because the context doesn't contain enough
 information to infer the type parameters of the parser.  The type definition
 `Parsec String () Char` defines a parser working on strings, with a state type
 of `()` (the empty tuple) and returning a character.
+
+### Runner
 
 Running this parser on a string starting with an 'a' is possible using a
 helper function:
@@ -64,3 +66,46 @@ a success.  In this run, the return value is an error `Left ...`, where the
 contents is a parser error containing the stream location of the error
 (filename, line, column), the error (unexpected "b"), and the expectation
 (expecting "a").
+
+### Additional Primitives
+
+The `Text.Parsec.Char` module contains other simple primitives (like `tab` and
+`newline`), parsers matching character classes (like `digit`, `hexDigit`,
+`upper`, `lower`), and combining parsers (`endOfLine`, matching either a
+newline character or a carriage return followed by a newline, and `spaces`
+matching _zero_ or more whitespace characters).
+
+Finally, there are factory functions for creating parsers.  For instance, the
+`string` function, creating a parser matching the contents of a string:
+
+```
+> runParser (string "Per") () "" "Per"
+Right "Per"
+```
+
+Note, that in this case, we didn't need the type declaration for the parser,
+since both the user state (the empty tuple) and stream type (a string) are
+passed to `runParser`.
+
+The `oneOf` function creates a parser matching any one of the characters in a
+given list:
+
+```
+> runParser (oneOf "abc") () "" "d"
+Left (line 1, column 1):
+unexpected "d"
+
+> runParser (oneOf "abc") () "" "c"
+Right 'c'
+```
+
+Finally, `noneOf` matches any character, except the ones in the given list:
+
+```
+> runParser (noneOf "abc") () "" "d"
+Right 'd'
+
+> runParser (noneOf "abc") () "" "c"
+Left (line 1, column 1):
+unexpected "c"
+```
