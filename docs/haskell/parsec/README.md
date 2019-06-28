@@ -79,13 +79,18 @@ Finally, there are factory functions for creating parsers.  For instance, the
 `string` function, creating a parser matching the contents of a string:
 
 ```
-> runParser (string "Per") () "" "Per"
-Right "Per"
+> runParser (string "Hello") () "" "Hello, World!"
+Right "Hello"
 ```
 
-Note, that in this case, we didn't need the type declaration for the parser,
-since both the user state (the empty tuple) and stream type (a string) are
-passed to `runParser`.
+Note that the parser doesn't try matching the entire input stream.  Only the
+part it is designed to recognize.  Technically, the parser returns the
+unparsed stream, but `runParser` discards it and returns only the parsed
+content.
+
+Also, note that in this case, we didn't need the type declaration for the
+parser, since both the user state (the empty tuple) and stream type (a
+string) are passed to `runParser`.
 
 The `oneOf` function creates a parser matching any one of the characters in a
 given list:
