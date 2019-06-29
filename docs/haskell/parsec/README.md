@@ -178,7 +178,8 @@ Digging deeper, `tokenPrim` is a helper function for creating parsers that
 doesn't update a user state:
 
 ```Haskell
-tokenPrim showToken nextpos test = tokenPrimEx showToken nextpos Nothing test
+tokenPrim showToken nextpos test
+    = tokenPrimEx showToken nextpos Nothing test
 ```
 
 The `Nothing` parameter to `tokenPrimEx` indicates that there's no user state
