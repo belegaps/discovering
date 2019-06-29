@@ -114,3 +114,98 @@ Right 'd'
 Left (line 1, column 1):
 unexpected "c"
 ```
+
+## The Parser
+
+So, what's the parser?  The basic type turns out to be:
+
+```Haskell
+newtype ParsecT s u m a
+    = ParsecT {unParser :: forall b .
+                   State s u
+                -> (a -> State s u -> ParseError -> m b) -- consumed ok
+                -> (ParseError -> m b)                   -- consumed err
+                -> (a -> State s u -> ParseError -> m b) -- empty ok
+                -> (ParseError -> m b)                   -- empty err
+                -> m b
+                }
+```
+
+Essentially, a function wrapped in a type.  The function takes five arguments:
+The parser state (containing the current input stream and the user state) and
+four functions to be called on specific conditions.  The result of the
+function is the result of the particular called function.
+
+The parameters to `ParsecT` are the input stream type (`s`), the user state
+type (`u`), the monad type (`m`) and the result type (`a`).
+
+As a helper, another type is defined, fixing the monad type to `Identity`:
+
+```Haskell
+type Parsec s u = ParsecT s u Identity
+```
+
+Spelled out, the definition would be `type Parsec s u a = ParsecT s u Identity
+a`, but it turns out currying also works for types.
+
+### The Character
+
+Going back to the test parser, the `char 'a'` parser resolves into:
+
+```Haskell
+char c = satisfy (==c) <?> show [c]
+```
+
+This defines `char c` as a parser that satisfies `(==c)` (i.e., is equal to c)
+and, in case of failure, returns the character as the error message string.
+
+`satisfy`, in turn, is defined as:
+
+```Haskell
+satisfy f = tokenPrim (\c -> show [c])
+                      (\pos c _cs -> updatePosChar pos c)
+                      (\c -> if f c then Just c else Nothing)
+```
+
+This defines `satisfies (==c)` by the `tokenPrim` function, which takes three
+function arguments.  The first is used for "pretty-printing" the value read
+from the input stream.  The second function is used to update the stream
+position, in case of a successful match.  And, the last argument is the actual
+processing function, which needs to return a `Maybe` value, either `Nothing`
+in case of a non-match or a `Just` value in case of a match.
+
+Digging deeper, `tokenPrim` is a helper function for creating parsers that
+doesn't update a user state:
+
+```Haskell
+tokenPrim showToken nextpos test = tokenPrimEx showToken nextpos Nothing test
+```
+
+The `Nothing` parameter to `tokenPrimEx` indicates that there's no user state
+update function.  When building parsers that update a user state, we'll need
+to call `tokenPrimEx` with a `Just` value that is an update function.
+
+```Haskell
+tokenPrimEx showToken nextpos Nothing test
+  = ParsecT $ \(State input pos user) cok _cerr _eok eerr -> do
+      r <- uncons input
+      case r of
+        Nothing -> eerr $ unexpectError "" pos
+        Just (c,cs)
+         -> case test c of
+              Just x -> let newpos = nextpos pos c cs
+                            newstate = State cs newpos user
+                        in seq newpos $ seq newstate $
+                           cok x newstate (newErrorUnknown newpos)
+              Nothing -> eerr $ unexpectError (showToken c) pos
+```
+
+The function starts by fetching the input stream head value by
+"un-constructing" it.  If empty, the return value will be a `Nothing` and the
+parser fails.  Otherwise, the `test` function is called, which returns
+a `Just` value given a match, in which case the stream position is updated,
+the new parser state is calculated, and the "consumed-ok" function is called.
+
+If the `test` function returns `Nothing`, the parser calls the "empty-error"
+callback function, to indicate that no part of the input stream was consumed
+before the error occurred.
