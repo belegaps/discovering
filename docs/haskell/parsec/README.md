@@ -210,3 +210,42 @@ the new parser state is calculated, and the "consumed-ok" function is called.
 If the `test` function returns `Nothing`, the parser calls the "empty-error"
 callback function, to indicate that no part of the input stream was consumed
 before the error occurred.
+
+## Combinators
+
+### Standard Haskell
+
+One of the strengths—and one of the difficulties for me—of Haskell if the use
+of the standard classes to do stuff.  You just have to learn a hundred classes
+and four hundred functions, then you can do magic with very little effort.
+Talk about a steep learning curve...
+
+#### Functor
+
+A parser is a `Functor`, a class defining types that can be mapped over.
+This means we can change the type of the parsed value:
+
+```Haskell
+ghci> true = fmap read (string "True") :: Parsec String () Bool
+
+ghci> runParser true () "(unknown)" "True"
+Right True
+```
+
+The `Data.Functor` module contains helper functions so `fmap read (string "True")`
+can be written as `read <$> string "True"` or even `string "True" <&> read`.
+Personally, I like the latter, but pick one to your liking.
+
+The other `Functor` function is `<$`, which will replace a successfully parsed
+value with another.  This is useful if creating a homogenous result of
+different parsed values.  For instance:
+
+```Haskell
+ghci> crlf = "\n" <$ string "\r\n" :: Parsec String () String
+
+ghci> runParser crlf () "(unknown)" "\r\n"
+Right "\n"
+```
+
+Again, the `Data.Functor` module contains an alternative for this function,
+allowing us to write `string "\r\n" $> "\n"` instead.
