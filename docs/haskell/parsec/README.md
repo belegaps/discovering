@@ -13,7 +13,7 @@ primitives and combinators.  The main module is `Text.Parsec`, which defines
 the parser type.  To use this, import the module using:
 
 ```
-> import Text.Parsec
+ghci> import Text.Parsec
 ```
 
 ### Parser Primitives
@@ -22,14 +22,14 @@ Parsec contains parser primitives, the most basic parsers, in the
 `Text.Parsec.Char` module.
 
 ```
-> import Text.Parsec.Char
+ghci> import Text.Parsec.Char
 ```
 
 The most basic parser is matching a single character.  Create a parser
 matching the character 'a', using the `char` factory function:
 
 ```
-> a_char = char 'a' :: Parsec String () Char
+ghci> a_char = char 'a' :: Parsec String () Char
 ```
 
 The type declaration is necessary because the context doesn't contain enough
@@ -43,7 +43,7 @@ Running this parser on a string starting with an 'a' is possible using a
 helper function:
 
 ```
-> runParser a_char () "filename" "a"
+ghci> runParser a_char () "filename" "a"
 Right 'a'
 ```
 
@@ -54,7 +54,7 @@ As an example of error reporting, try running the parser on a non-matching
 string:
 
 ```
-> runParser a_char () "filename" "b"
+ghci> runParser a_char () "filename" "b"
 Left "filename" (line 1, column 1):
 unexpected "b"
 expecting "a"
@@ -79,7 +79,7 @@ Finally, there are factory functions for creating parsers.  For instance, the
 `string` function, creating a parser matching the contents of a string:
 
 ```
-> runParser (string "Hello") () "" "Hello, World!"
+ghci> runParser (string "Hello") () "" "Hello, World!"
 Right "Hello"
 ```
 
@@ -96,21 +96,21 @@ The `oneOf` function creates a parser matching any one of the characters in a
 given list:
 
 ```
-> runParser (oneOf "abc") () "" "d"
+ghci> runParser (oneOf "abc") () "" "d"
 Left (line 1, column 1):
 unexpected "d"
 
-> runParser (oneOf "abc") () "" "c"
+ghci> runParser (oneOf "abc") () "" "c"
 Right 'c'
 ```
 
 Finally, `noneOf` matches any character, except the ones in the given list:
 
 ```
-> runParser (noneOf "abc") () "" "d"
+ghci> runParser (noneOf "abc") () "" "d"
 Right 'd'
 
-> runParser (noneOf "abc") () "" "c"
+ghci> runParser (noneOf "abc") () "" "c"
 Left (line 1, column 1):
 unexpected "c"
 ```
@@ -119,7 +119,7 @@ unexpected "c"
 
 So, what's the parser?  The basic type turns out to be:
 
-```Haskell
+```haskell
 newtype ParsecT s u m a
     = ParsecT {unParser :: forall b .
                    State s u
@@ -141,7 +141,7 @@ type (`u`), the monad type (`m`) and the result type (`a`).
 
 As a helper, another type is defined, fixing the monad type to `Identity`:
 
-```Haskell
+```haskell
 type Parsec s u = ParsecT s u Identity
 ```
 
@@ -152,7 +152,7 @@ a`, but it turns out currying also works for types.
 
 Going back to the test parser, the `char 'a'` parser resolves into:
 
-```Haskell
+```haskell
 char c = satisfy (==c) <?> show [c]
 ```
 
@@ -161,7 +161,7 @@ and, in case of failure, returns the character as the error message string.
 
 `satisfy`, in turn, is defined as:
 
-```Haskell
+```haskell
 satisfy f = tokenPrim (\c -> show [c])
                       (\pos c _cs -> updatePosChar pos c)
                       (\c -> if f c then Just c else Nothing)
@@ -177,7 +177,7 @@ in case of a non-match or a `Just` value in case of a match.
 Digging deeper, `tokenPrim` is a helper function for creating parsers that
 doesn't update a user state:
 
-```Haskell
+```haskell
 tokenPrim showToken nextpos test
     = tokenPrimEx showToken nextpos Nothing test
 ```
@@ -186,7 +186,7 @@ The `Nothing` parameter to `tokenPrimEx` indicates that there's no user state
 update function.  When building parsers that update a user state, we'll need
 to call `tokenPrimEx` with a `Just` value that is an update function.
 
-```Haskell
+```haskell
 tokenPrimEx showToken nextpos Nothing test
   = ParsecT $ \(State input pos user) cok _cerr _eok eerr -> do
       r <- uncons input
@@ -225,7 +225,7 @@ Talk about a steep learning curve...
 A parser is a `Functor`, a class defining types that can be mapped over.
 This means we can change the type of the parsed value:
 
-```Haskell
+```
 ghci> true = fmap read (string "True") :: Parsec String () Bool
 
 ghci> runParser true () "(unknown)" "True"
@@ -240,7 +240,7 @@ The other `Functor` function is `<$`, which will replace a successfully parsed
 value with another.  This is useful if creating a homogenous result of
 different parsed values.  For instance:
 
-```Haskell
+```
 ghci> crlf = "\n" <$ string "\r\n" :: Parsec String () String
 
 ghci> runParser crlf () "(unknown)" "\r\n"
