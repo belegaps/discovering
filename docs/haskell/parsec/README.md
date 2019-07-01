@@ -371,7 +371,7 @@ ghci> string' s = sequence $ map char s :: Parsec String () String
 
 ghci> hello = string' "Hello"
 
-ghci>
+ghci> runParser hello () "(unknown)" "Hello, World!"
 Right "Hello"
 ```
 
@@ -402,4 +402,57 @@ chars_ab = do
     a <- char 'a'
     b <- char 'b'
     return (a,b)
+```
+
+#### Alternative
+
+The parser as an `Alternative` type class instance defines combinators for
+parsing alternatives and repetition.  The `empty` constant defines a parser
+that always fails.
+
+The `<|>` infix operator combines two parsers into one that succeeds if either
+of the two succeeds:
+
+```
+ghci> a_or_b = char 'a' <|> char 'b' :: Parsec String () Char
+
+ghci> runParser a_or_b () "(unknown)" "abc"
+Right 'a'
+
+ghci> runParser a_or_b () "(unknown)" "bac"
+Right 'b'
+
+ghci> runParser a_or_b () "(unknown)" "cab"
+Left "(unknown)" (line 1, column 1):
+unexpected "c"
+expecting "a" or "b"
+```
+
+The `some` function lifts a parser to match one or more occurrences of some
+tokens.  The resulting parser returns a list of sequences:
+
+```
+ghci> import Control.Applicative (some)
+
+ghci> as = some (char 'a') :: Parsec String () String
+
+ghci> runParser as () "(unknown)" "aaabbbccc"
+Right "aaa"
+
+ghci> runParser as () "(unknown)" "bbbccc"
+Left "(unknown)" (line 1, column 1):
+unexpected "b"
+expecting "a"
+```
+
+Finally, `many` matches _zero_ or more occurrences of a parser:
+
+```
+ghci> as_or_empty = many (char 'a') :: Parsec String () String
+
+ghci> runParser as_or_empty () "(unknown)" "aaabbbccc"
+Right "aaa"
+
+ghci> runParser as_or_empty () "(unknown)" "bbbccc"
+Right ""
 ```
