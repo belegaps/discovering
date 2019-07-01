@@ -308,3 +308,98 @@ Right 'a'
 Notably, for both `*>` and `<*`, both parsers must succeed for the combined
 parser to succeed.  `<*` doesn't return the result of the first parser if the
 second parser fails.
+
+#### Monad
+
+Parsers are monads.  This gives us a few more combinators from the standard
+library.  The first (`>>=`) combines two parsers by passing the result of the
+first to a function providing the second:
+
+```
+ghci> if_a_then_b = char 'a' >>= \a -> char (succ a) :: Parsec String () Char
+
+ghci> runParser if_a_then_b () "(unknown)" "ab"
+Right 'b'
+```
+
+The next one (`>>`) also combines two parsers, but does so by discarding the
+result of the first:
+
+```
+ghci> if_a_then_b = char 'a' >> char 'b' :: Parsec String () Char
+
+ghci> runParser if_a_then_b () "(unknown)" "ab"
+Right 'b'
+```
+
+Finally, `return` returns a parser that returns the parameter as the result,
+regardless of the input:
+
+```
+ghci> always_a = return 'a'
+
+ghci> runParser always_a () "(unknown)" ""
+Right 'a'
+```
+
+If this sounds a lot like `pure`, described above, it's because the default
+implementation of `return` is, in fact, `pure`.
+
+Notice the "missing" type declaration in the expression `always_a = return 'a'`.
+The type of `always_a` is `always_a :: Monad m => m Char`, which is still
+flexible.  When passed to `runParser`, the monad is inferred as `Parsec String ()`
+resulting in the (correct) `Parsec String () Char` typed parser. And all is
+well in Magic Kingdom...
+
+The last monad function is `fail`, which represents a failing/failed
+operation.  In our case a parser that always fails:
+
+```
+ghci> unexpected = fail "Unexpected"
+
+ghci> runParser unexpected () "(unknown)" "some input"
+Left "(unknown)" (line 1, column 1):
+Unexpected
+```
+
+The `Monad` type class gives access to a couple of helper functions as well.
+First, `sequence` will convert a list of parsers (of the same type) to a
+parser of lists (of that type):
+
+```
+ghci> string' s = sequence $ map char s :: Parsec String () String
+
+ghci> hello = string' "Hello"
+
+ghci>
+Right "Hello"
+```
+
+So, map the string (list of characters) to a list of character parsers and
+sequence that into a parser of a list of characters.
+
+Finally, the `Monad` class gives access to some syntactic sugar, related to
+the `>>=`, `>>`, `return`, and `fail` functions; the `do` notation.
+
+`do` allows us to sequence parsers and return a combined result (or any
+result):
+
+```
+ghci> chars_ab = do { a <- char 'a'; b <- char 'b'; return (a,b) } :: Parsec String () (Char,Char)
+
+ghci> runParser chars_ab () "(unknown)" "ab"
+Right ('a','b')
+```
+
+The `do` notation may be a little more legible in script form:
+
+```haskell
+import Text.Parsec
+import Text.Parsec.Char
+
+chars_ab :: Parsec String () (Char,Char)
+chars_ab = do
+    a <- char 'a'
+    b <- char 'b'
+    return (a,b)
+```
