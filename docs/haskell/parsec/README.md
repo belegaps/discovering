@@ -249,3 +249,62 @@ Right "\n"
 
 Again, the `Data.Functor` module contains an alternative for this function,
 allowing us to write `string "\r\n" $> "\n"` instead.
+
+#### Applicator
+
+A parser is an `Applicative` instance.  This provides operations to apply
+parser results to a function, combining the results.
+
+The `pure` function embeds a value in a parser, essentially providing a
+constant parser:
+
+```
+ghci> always_a = pure 'a' :: Parsec String () Char
+
+ghci> runParser always_a () "(unknown)" "blah"
+Right 'a'
+```
+
+The `<*>` function applies a parameter to a function.  This allows sequencing
+parsers and applying a function to the result:
+
+```
+ghci> a_and_b = pure (,) <*> char 'a' <*> char 'b' :: Parsec String () (Char,Char)
+
+ghci> runParser a_and_b () "(unknown)" "abcd"
+Right ('a','b')
+```
+
+Using `<$>` (infix version of fmap) from `Functor` allows us to write this
+without wrapping the function in a parser, which seems a little redundant:
+
+```
+ghci> a_b_and_c = (,,) <$> char 'a' <*> char 'b' <*> char 'c' :: Parsec String () (Char,Char,Char)
+
+ghci> runParser a_b_and_c () "(unknown)" "abcd"
+Right ('a','b','c')
+```
+
+A couple of other functions are available for applicatives.  The `*>` function
+applies two parsers and returns the result of the second:
+
+```
+ghci> just_b = char 'a' *> char 'b' :: Parsec String () Char
+
+ghci> runParser just_b () "(unknown)" "ab"
+Right 'b'
+```
+
+Similarly, the `<*` function applies two parsers and returns the result of the
+first:
+
+```
+ghci> just_a = char 'a' <* char 'b' :: Parsec String () Char
+
+ghci> runParser just_a () "(unknown)" "ab"
+Right 'a'
+```
+
+Notably, for both `*>` and `<*`, both parsers must succeed for the combined
+parser to succeed.  `<*` doesn't return the result of the first parser if the
+second parser fails.
